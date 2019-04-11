@@ -1,7 +1,5 @@
 /* Maximilian Guzman, gan022 */
 
-
-
 /* Server code */
 #include <sys/types.h>
 #include <arpa/inet.h>
@@ -9,25 +7,22 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define Group join_group.imr_multiaddr.s_addr
-#define Interface join_group.imr_interface.s_addr
+#include <unistd.h>
+#include <errno.h>
 
 int main(int argc, char *argv[]){
-    int sock, i, nbytes, flags, size, addrlen;    
+    int sock, i, nbytes, flags, size, addrlen, binded, ttl;    
     int port = 22200;
     char *str_addr = (char *) malloc(11);
     strcpy(str_addr, "239.10.5.");  
-    char *message = (char *) malloc(30);
-    struct sockaddr_in target_pc;
-    struct sockaddr_in me;
-    
+    char message[50];
+    struct sockaddr_in client;
+    //struct sockaddr_in client;
+
     /* Pass in group number, set port and multicast group number/address */
     if (argc > 1){
         port += atoi(argv[1]);
-        printf("%d\n", port);
         strcat(str_addr, argv[1]);
-        printf("%s\n", str_addr);
     } else {		
         printf("Error: Must pass in group number\n");
 	return -1;
@@ -38,6 +33,44 @@ int main(int argc, char *argv[]){
     if(sock < 0) {
         printf("socket error = %d\n", sock);
         return -1;
+    }
+
+    ttl = 5;
+    int q = setsockopt(sock,IPPROTO_IP,IP_MULTICAST_TTL,&ttl,sizeof(ttl));
+    if (q < 0){
+        fprintf(stderr, "Error: %s\n", strerror(errno));
+        return -1;
+    }	
+
+    client.sin_addr.s_addr = inet_addr(&str_addr[0]); 
+    client.sin_port = htons(port);
+    client.sin_family = AF_INET;
+    /* associate the socket with the address structure - this is called binding */
+    binded = bind(sock, (struct sockaddr *) &client, sizeof(client));
+    if( binded < 0) {
+       printf("bind result: %d\n", binded);
+       return -1;
+    }      
+
+    i = 1;
+    while(1){
+        sleep(1);
+        snprintf(message, sizeof(message), 
+            "This is message %d from the Group %s beacon\n", i, argv[1]);
+        //printf("%s", message);
+        nbytes=strlen(message);
+        flags = 0;
+        size =  sendto(sock, message, nbytes, flags,
+            (struct sockaddr *) &client, sizeof(client));
+        if (size < 0){
+            printf("Error - sendto result: %d\n", size);
+            printf("sock %d - message %s\nnbytes %d - flags %d\n",
+                    sock, message, nbytes, flags);
+            return -1;
+        }else{
+	    printf("sent message %d\n", i);
+	}
+        i++;
     }
 
     return 0;
