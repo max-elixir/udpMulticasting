@@ -67,7 +67,7 @@ int main(int argc, char *argv[]){
         size = recvfrom(sock, message, nbytes, flags, 
             (struct sockaddr*)&beacon, &addrlen);
 		if (size < 0){
-			fprintf(stderr, "Error: recvfrom failed - %s\n", strerr[0]);
+			fprintf(stderr, "Error: recvfrom failed - %s\n", strerror(errno));
 			return -1;
 		}
         printf("message %d: %s", count, message);
