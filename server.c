@@ -1,5 +1,6 @@
 /* Maximilian Guzman, gan022 */
-
+/* Andrew Rodriguez, awa794 */
+/* Jerome Daly, qco784*/
 /* Server code */
 #include <sys/types.h>
 #include <arpa/inet.h>
@@ -9,6 +10,23 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
+
+
+typedef struct {
+    message * prevMessage;
+    message * nextMessage;
+    char message[100];
+} message;
+
+message * lastMessage = NULL;
+message * oldMessage = NULL;
+int curMessage = 0;
+
+void handleDropped();
+void insert(char * msg);
+int length();
+void removeTail();
 
 int main(int argc, char *argv[]){
     int sock, i, nbytes, flags, size, addrlen, binded, ttl;    
@@ -27,7 +45,7 @@ int main(int argc, char *argv[]){
         printf("Error: Must pass in group number\n");
 	return -1;
     }
-    
+   
     /* create a socket to send on */
     sock = socket(AF_INET,SOCK_DGRAM,0);
     if(sock < 0) {
@@ -74,4 +92,34 @@ int main(int argc, char *argv[]){
     }
 
     return 0;
+}
+
+void insert(char * msg){
+    message * newMessage, tmp;
+    newMessage = (message *) malloc(sizeof(message));
+    strcpy(newMessage->message, *msg);
+    newMessage->nextMessage = NULL;
+    if (lastMessage == NULL){
+        lastMessage = newMessage;
+        oldMessage = newMessage;
+        newMessage->prevMessage = NULL;
+        return;
+    }
+    lastMessage->nextMessage = newMessage;
+    newMessage->prevMessage = lastMessage;
+    lastMessage = newMessage;
+}
+
+int length() {
+    int length = 0;
+    struct node *cur;
+    for(cur = lastMessage; cur != NULL; cur = cur->prevMessage) length++;
+    return length;
+}
+
+void remove(){
+    message * tmp;
+    tmp = oldMessage;
+    oldMessage = oldMessage->nextMessage;
+    free(tmp);
 }
