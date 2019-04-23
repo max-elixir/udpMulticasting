@@ -13,10 +13,10 @@
 #include <pthread.h>
 
 
-typedef struct {
-    message * prevMessage;
-    message * nextMessage;
-    char message[100];
+typedef struct message {
+    struct message * prevMessage;
+    struct message * nextMessage;
+    char thisMsg[125];
 } message;
 
 message * lastMessage = NULL;
@@ -27,25 +27,30 @@ void handleDropped();
 void insert(char * msg);
 int length();
 void removeTail();
+void printList();
 
 int main(int argc, char *argv[]){
     int sock, i, nbytes, flags, size, addrlen, binded, ttl;    
     int port = 22200;
     char *str_addr = (char *) malloc(11);
+    FILE * fh;
     strcpy(str_addr, "239.10.5.");  
-    char message[50];
+    char message[125], buffer[100];
     struct sockaddr_in client;
     //struct sockaddr_in client;
 
     /* Pass in group number, set port and multicast group number/address */
-    if (argc > 1){
+ if (argc > 2){
         port += atoi(argv[1]);
         strcat(str_addr, argv[1]);
     } else {		
-        printf("Error: Must pass in group number\n");
+        printf("Error: Must pass in group number and text file to read.\n");
 	return -1;
     }
    
+    /* File pointer to read in text */
+    fh = fopen(argv[2], "r");
+
     /* create a socket to send on */
     sock = socket(AF_INET,SOCK_DGRAM,0);
     if(sock < 0) {
@@ -73,9 +78,10 @@ int main(int argc, char *argv[]){
     i = 1;
     while(1){
         sleep(1);
+        fgets(buffer, 100, fh);
         snprintf(message, sizeof(message), 
-            "This is message %d from the Group %s beacon\n", i, argv[1]);
-        //printf("%s", message);
+            "%d---%s", i, buffer);
+        printf("%s", message);
         nbytes=strlen(message);
         flags = 0;
         size =  sendto(sock, message, nbytes, flags,
@@ -89,15 +95,26 @@ int main(int argc, char *argv[]){
 	    printf("sent message %d\n", i);
 	}
         i++;
+        insert((char *)&message);
+        //printList();
+        if(length() > 10) removeTail();
     }
 
     return 0;
 }
 
+/*void handleDropped(){
+    return;
+    
+    while(){
+
+    }
+}*/
+
 void insert(char * msg){
     message * newMessage, tmp;
     newMessage = (message *) malloc(sizeof(message));
-    strcpy(newMessage->message, *msg);
+    strcpy(newMessage->thisMsg, msg);
     newMessage->nextMessage = NULL;
     if (lastMessage == NULL){
         lastMessage = newMessage;
@@ -112,14 +129,24 @@ void insert(char * msg){
 
 int length() {
     int length = 0;
-    struct node *cur;
+    struct message *cur;
     for(cur = lastMessage; cur != NULL; cur = cur->prevMessage) length++;
     return length;
 }
 
-void remove(){
+void removeTail(){
     message * tmp;
     tmp = oldMessage;
     oldMessage = oldMessage->nextMessage;
+    oldMessage->prevMessage = NULL;
+    //printf("Removed %s\nNew tail %s\n", tmp->thisMsg, oldMessage->thisMsg);
     free(tmp);
+}
+
+void printList(){
+    struct message *cur;
+    printf("CURRENT LINKED LIST:\n");
+    for(cur = lastMessage; cur != NULL; cur = cur->prevMessage) printf("%s", cur->thisMsg);
+    printf("\n\n");
+    return;
 }
