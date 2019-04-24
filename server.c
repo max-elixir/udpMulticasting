@@ -103,6 +103,7 @@ int main(int argc, char *argv[]){
 	         printf("sent message %d\n", i);
 	      }
         i++;
+        curMessage++;
         insert((char *)&message);
         //printList();
         if(length() > 10) removeTail();
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]){
 
 int handleDropped(){
     // Variable declaration.
-    int sock, nbytes, i, addrlen, size, connection, pid, flags;
+    int sock, nbytes, i, j, addrlen, size, connection, pid, flags;
     struct sockaddr_in server, from;
     socklen_t fromLen;
     char buffer[150], set_opt[100];
@@ -165,6 +166,9 @@ int handleDropped(){
             close(sock);
             exit(-1);
         } else printf("I accepted a connection!\n");
+        message * dropped;
+        dropped = lastMessage;
+        int listIndex = curMessage;  
 
         // Fork so the child process can handle the new connection while the parent continues accepting connections.
         pid = fork();
@@ -172,16 +176,18 @@ int handleDropped(){
         if( pid == 0 ){
             nbytes = 99;
             flags = 0;
+            j = 0;
             close(sock);
             size = recv(connection, buffer, nbytes, flags);
+            listIndex = curMessage - atoi(buffer);
+            for (dropped = dropped; j < listIndex; dropped = dropped->prevMessage); 
             if(size<0){
                 printf("Error in receiving data.\n");
                 return -1;
             }
             printf("Received message: %s\n",buffer);
-            flags = 0;
-            strcat(buffer, " I hear you!\n");
-            size = send(connection, buffer, strlen(buffer)+1,flags);
+            flags = 0; 
+            size = send(connection, dropped->prevMessage, 125,flags);
             close(connection);
             return 0;
 
