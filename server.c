@@ -213,37 +213,6 @@ void sig_chld(int signo){
     return;
 }
 
-/* void *receiveMessage(void *sock) {
-    //continuously listen for the client to send missing line number
-    while (1) {
-        char server_reply[5];
-        int missing, flags;
-        char message[125];
-        int addrlen = sizeof(client);
-        int nbytes = 99;
-        //Receive a reply from the client
-        int size = recvfrom(sock, message, nbytes, flags,
-              (struct sockaddr*)&client, &addrlen);
-    		if (size < 0){
-    			fprintf(stderr, "Error: recvfrom failed - %s\n", strerror(errno));
-    			return -1;
-    		}
-        //convert the ascii to integer value
-        missing = atoi(server_reply);
-        //search LL for missing message and resend
-        //
-        //resend the missing message and error check
-        size =  sendto(sock, message, nbytes, flags,
-            (struct sockaddr *) &client, sizeof(client));
-        if (size < 0){
-          printf("ERROR - sendto failed with value: %d\n", size);
-          return -1;
-        }else{
-	         printf("sent message %d\n", i);
-	      }
-    }
-} */
-
 void insert(char * msg){
     message * newMessage, tmp;
     newMessage = (message *) malloc(sizeof(message));
