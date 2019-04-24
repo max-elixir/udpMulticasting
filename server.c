@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/wait.h>
 
 #define LISTEN_PORT 49000
 
@@ -148,7 +149,7 @@ int handleDropped(){
     } else printf("Simple TCP server is ready!\n\n");
 
     // Listen for up to 3 connections.
-    i = listen(sock, 3);
+    i = listen(sock, 10);
     if (i < 0){
         printf("Listen failed!\n");
         close(sock);
@@ -177,17 +178,26 @@ int handleDropped(){
             nbytes = 99;
             flags = 0;
             j = 0;
-            close(sock);
+            
             size = recv(connection, buffer, nbytes, flags);
-            listIndex = curMessage - atoi(buffer);
+            close(sock);
+	    listIndex = curMessage - atoi(buffer);
             for (dropped = dropped; j < listIndex; dropped = dropped->prevMessage); 
             if(size<0){
                 printf("Error in receiving data.\n");
                 return -1;
             }
             printf("Received message: %s\n",buffer);
+	    fflush(NULL);
             flags = 0; 
-            size = send(connection, dropped->prevMessage, 125,flags);
+            
+	    size = send(connection, dropped->thisMsg, 125,flags);
+            if(size<0){
+                printf("Error in receiving datai: %s.\n", strerror(errno));
+                return -1;
+            }
+
+	    printf("you should get %s\n", dropped->thisMsg);
             close(connection);
             return 0;
 
