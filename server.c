@@ -11,7 +11,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 
+#define LISTEN_PORT 49000
 
 typedef struct message {
     struct message * prevMessage;
@@ -23,12 +25,13 @@ message * lastMessage = NULL;
 message * oldMessage = NULL;
 int curMessage = 0;
 
-void handleDropped();
+int handleDropped();
 void insert(char * msg);
 int length();
 void removeTail();
 void printList();
 void *receiveMessage(void *sock);
+void sig_chld(int signo);
 
 int main(int argc, char *argv[]){
     int sock, i, nbytes, flags, size, addrlen, binded, ttl;
@@ -78,11 +81,8 @@ int main(int argc, char *argv[]){
 
     i = 1;
     //initialize vars for receiveMessage thread
-    int *new_sock;
-    new_sock = malloc(sizeof(int));
-    new_sock = sock;
     pthread_t recv_thread;
-    pthread_create(&recv_thread, NULL, receiveMessage, (void *)new_sock);
+    pthread_create(&recv_thread, NULL, (void *)handleDropped, NULL);
 
     while(1){
         sleep(1);
@@ -111,15 +111,103 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-/*void handleDropped(){
-    return;
+int handleDropped(){
+    // Variable declaration.
+    int sock, nbytes, i, addrlen, size, connection, pid, flags;
+    struct sockaddr_in server, from;
+    socklen_t fromLen;
+    char buffer[150], set_opt[100];
+    
+    // Establishing the server's settings.
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
+    server.sin_port = htons(LISTEN_PORT);
+    
 
-    while(){
+    // Creating our socket.
+    sock = socket(PF_INET,SOCK_STREAM,IPPROTO_TCP);
+    if (sock < 0){
+        printf("Error declaring socket, sock = %d, errno = %d\n", sock, errno);
+        exit(-1);
+    } else printf("Socket created!\n");
 
+    // Setting our socket options.
+    i = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)set_opt, sizeof(set_opt));
+    if (i < 0){
+        printf("Error in setting socket option\n");
+        exit(-1);
     }
-}*/
 
-void *receiveMessage(void *sock) {
+    // Binding the socket.
+    i = bind(sock, (struct sockaddr *) &server, sizeof(server));
+    if(i < 0){
+        printf("Bind result: %d\n", i);
+        close(sock);
+        exit(-1);
+    } else printf("Simple TCP server is ready!\n\n");
+
+    // Listen for up to 3 connections.
+    i = listen(sock, 3);
+    if (i < 0){
+        printf("Listen failed!\n");
+        close(sock);
+        exit(-1);
+    } else printf("Server is listening!\n");
+
+    signal(SIGCHLD,sig_chld);
+
+    fromLen = sizeof(from);
+    while(1 == 1){
+        // Accept connections from users.
+        connection = accept(sock, (struct sockaddr *) &from,(socklen_t *) &fromLen);
+        if (connection < 0){
+            printf("Accept failed! errno: %d\n", errno);
+            close(sock);
+            exit(-1);
+        } else printf("I accepted a connection!\n");
+
+        // Fork so the child process can handle the new connection while the parent continues accepting connections.
+        pid = fork();
+        // Child process block. Gets message, prints it, then sends back the message with indication that message was received.
+        if( pid == 0 ){
+            nbytes = 99;
+            flags = 0;
+            close(sock);
+            size = recv(connection, buffer, nbytes, flags);
+            if(size<0){
+                printf("Error in receiving data.\n");
+                return -1;
+            }
+            printf("Received message: %s\n",buffer);
+            flags = 0;
+            strcat(buffer, " I hear you!\n");
+            size = send(connection, buffer, strlen(buffer)+1,flags);
+            close(connection);
+            return 0;
+
+        } else {
+            // Parent block. Just handles if the fork fails.
+            if (pid == -1){
+            printf("Fork failed!\n");
+            return -1;
+            }
+        // Close connection in both since parent does not need it and the child no longer needs it either.
+        close(connection);
+        }
+    }
+    // Close socket, exit execution.
+    close(sock);
+
+}
+
+void sig_chld(int signo){
+    pid_t pid;
+    int stat;
+    while(( pid=waitpid(-1,&stat,WNOHANG)) > 0);
+    return;
+}
+
+/* void *receiveMessage(void *sock) {
     //continuously listen for the client to send missing line number
     while (1) {
         char server_reply[5];
@@ -148,7 +236,7 @@ void *receiveMessage(void *sock) {
 	         printf("sent message %d\n", i);
 	      }
     }
-}
+} */
 
 void insert(char * msg){
     message * newMessage, tmp;
