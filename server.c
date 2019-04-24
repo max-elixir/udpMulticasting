@@ -182,7 +182,7 @@ int handleDropped(){
             size = recv(connection, buffer, nbytes, flags);
             close(sock);
 	    listIndex = curMessage - atoi(buffer);
-            for (dropped = dropped; j < listIndex; dropped = dropped->prevMessage); 
+            for (dropped = dropped; j < listIndex; dropped = dropped->prevMessage) j++; 
             if(size<0){
                 printf("Error in receiving data.\n");
                 return -1;
